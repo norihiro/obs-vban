@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27]
+        obs: [27, 28]
         ubuntu: ['ubuntu-20.04']
     defaults:
       run:
