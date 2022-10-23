@@ -16,7 +16,7 @@ jobs:
     - name: Clang
       run: |
         sudo apt-get install -y clang-format-12
-        clang-format -i -fallback-style=none $(git ls-files | grep '\.\(c\|h\)$')
+        clang-format -i -fallback-style=none $(git ls-files | grep -v '^vban/' | grep '\.\(c\|h\)$')
 
     - name: Check
       # Build your program with the given configuration

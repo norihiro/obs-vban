@@ -51,6 +51,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	OBS::libobs
 )
 
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE vban)
+
 if(OS_WINDOWS)
 	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
 	if (MSVC)
