@@ -43,6 +43,7 @@ set(PLUGIN_SOURCES
 	src/plugin-main.c
 	src/vban-source.c
 	src/vban-udp-instance.c
+	src/vban-udp-thread.c
 )
 
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})

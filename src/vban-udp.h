@@ -1,15 +1,7 @@
 #pragma once
 
 #include <string.h>
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/poll.h>
-#else // _WIN32
-#include <winsock2.h>
-#endif
+#include "socket.h"
 
 typedef struct vban_udp_s vban_udp_t;
 

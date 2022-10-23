@@ -7,7 +7,7 @@
 
 struct source_list_s
 {
-	void (*cb)(void *data);
+	vban_udp_cb_t cb;
 	void *data;
 
 	struct source_list_s *next;
@@ -28,7 +28,7 @@ struct vban_udp_s
 	struct source_list_s *sources;
 
 	// VBAN
-	// TODO: socket_handle_t vban_socket;
+	socket_t vban_socket;
 
 	// statistics
 	int packets_received;

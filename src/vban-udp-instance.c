@@ -123,3 +123,39 @@ static void vban_udp_destroy(vban_udp_t *dev)
 
 	bfree(dev);
 }
+
+void vban_udp_add_callback(vban_udp_t *dev, vban_udp_cb_t cb, void *data)
+{
+	struct source_list_s *item = bzalloc(sizeof(struct source_list_s));
+	item->cb = cb;
+	item->data = data;
+
+	pthread_mutex_lock(&dev->mutex);
+	item->next = dev->sources;
+	item->prev_next = &dev->sources;
+	dev->sources = item;
+	if (item->next)
+		item->next->prev_next = &item->next;
+
+	pthread_mutex_unlock(&dev->mutex);
+}
+
+void vban_udp_remove_callback(vban_udp_t *dev, vban_udp_cb_t cb, void *data)
+{
+	pthread_mutex_lock(&dev->mutex);
+
+	for (struct source_list_s *item = dev->sources; item; item = item->next) {
+		if (item->cb != cb)
+			continue;
+		if (item->data != data)
+			continue;
+
+		*item->prev_next = item->next;
+		if (item->next)
+			item->next->prev_next = item->prev_next;
+		bfree(item);
+		break;
+	}
+
+	pthread_mutex_unlock(&dev->mutex);
+}
