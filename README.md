@@ -6,9 +6,17 @@ This plugin provides audio source from VBAN, an audio over UDP protocol.
 
 ## Properties
 
-### IP address from
+Streams will be identified by these two properties. If your computer is receiving multiple VBAN streams, please set them.
 
-### Name
+### IP Address From
+
+Set IP address of your source.
+If empty, any sources can be received.
+
+### Stream Name
+
+Set name of your stream.
+If empty, any stream will be received.
 
 ## Build and install
 ### Linux
