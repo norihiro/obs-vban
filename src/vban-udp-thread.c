@@ -26,6 +26,11 @@ static bool init_socket(vban_udp_t *dev)
 {
 	int ret;
 
+	char thread_name[16];
+	snprintf(thread_name, sizeof(thread_name), "vban-r-%d", dev->port);
+	thread_name[sizeof(thread_name) - 1] = 0;
+	os_set_thread_name(thread_name);
+
 	dev->vban_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (!valid_socket(dev->vban_socket)) {
 		blog(LOG_ERROR, "Failed to create socket");
