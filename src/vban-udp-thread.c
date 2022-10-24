@@ -39,6 +39,9 @@ static bool init_socket(vban_udp_t *dev)
 		return false;
 	}
 
+	int opt = 1;
+	setsockopt(dev->vban_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
+
 	struct sockaddr_in si_me;
 	memset(&si_me, 0, sizeof(si_me));
 	si_me.sin_family = AF_INET;
