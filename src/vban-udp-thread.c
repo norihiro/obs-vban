@@ -90,6 +90,20 @@ void *vban_udp_thread_main(void *data)
 			continue;
 		}
 
+		const struct VBanHeader *header = (const struct VBanHeader *)buf;
+
+		if (memcmp(&header->vban, "VBAN", 4) != 0)
+			continue;
+
+		// Assuming VBAN_PROTOCOL_AUDIO = 0
+		if (header->format_SR >= VBAN_SR_MAXNUMBER)
+			continue;
+
+		if ((header->format_bit & VBAN_CODEC_MASK) != VBAN_CODEC_PCM) {
+			blog(LOG_WARNING, "Unsupported VBAN-CODEC: 0x%x", (int)header->format_bit);
+			continue;
+		}
+
 		pthread_mutex_lock(&dev->mutex);
 		for (struct source_list_s *src = dev->sources; src; src = src->next) {
 			src->cb(buf, ret, &addr, src->data);

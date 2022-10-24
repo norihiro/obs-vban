@@ -17,8 +17,10 @@
  */
 
 #include <obs-module.h>
+#include <util/platform.h>
 #include "plugin-macros.generated.h"
 #include "vban-udp.h"
+#include "vban.h"
 
 struct vban_src_s
 {
@@ -30,6 +32,8 @@ struct vban_src_s
 	char *ip_from;
 
 	vban_udp_t *vban;
+
+	DARRAY(float) buffer;
 };
 
 static const char *vban_src_get_name(void *)
@@ -117,6 +121,7 @@ static void vban_src_destroy(void *data)
 
 	bfree(s->stream_name);
 	bfree(s->ip_from);
+	da_free(s->buffer);
 	bfree(s);
 }
 
@@ -133,11 +138,79 @@ const struct obs_source_info vban_source_info = {
 	.icon_type = OBS_ICON_TYPE_AUDIO_INPUT,
 };
 
+static void convert_24le_to_fltp(struct vban_src_s *s, struct obs_source_audio *audio, const char *buf)
+{
+	da_resize(s->buffer, audio->speakers * audio->frames);
+	float *dst = s->buffer.array;
+	for (int ch = 0; ch < (int)audio->speakers; ch++) {
+		audio->data[ch] = (void *)dst;
+		const char *src = buf + ch * 3;
+		for (uint32_t i = 0; i < audio->frames; i++) {
+			int x = (src[0] & 0xFF) | ((src[1] & 0xFF) << 8) | ((src[2] & 0xFF) << 16) |
+				((src[2] & 0x80) ? 0xFF000000 : 0);
+			*dst++ = x * (1.0f / 8388608.0f);
+			src += 3 * audio->speakers;
+		}
+	}
+}
+
 static void vban_src_callback(const char *buf, size_t buf_len, const struct sockaddr_in *addr, void *data)
 {
 	struct vban_src_s *s = data;
 
-	(void)s, (void)buf, (void)buf_len, (void)addr; // TODO: implement
-	// TODO: lock
-	// TODO: compare stream_name and ip_from?
+	const struct VBanHeader *header = (const struct VBanHeader *)buf;
+	const char *payload = buf + VBAN_HEADER_SIZE;
+	size_t payload_len = buf_len - VBAN_HEADER_SIZE;
+
+	if (header->format_nbc + 1 > 8) {
+		blog(LOG_ERROR, "Too many number of channels: %d", header->format_nbc + 1);
+		return;
+	}
+
+	struct obs_source_audio audio = {
+		.frames = header->format_nbs + 1,
+		.speakers = header->format_nbc + 1,
+		.samples_per_sec = VBanSRList[header->format_SR & VBAN_SR_MASK],
+	};
+
+	size_t len_exp =
+		VBanBitResolutionSize[header->format_bit & VBAN_BIT_RESOLUTION_MASK] * audio.frames * audio.speakers;
+	if (payload_len < len_exp) {
+		blog(LOG_ERROR, "Too small payload size %d, expected %d", (int)payload_len,
+		     VBanBitResolutionSize[header->format_bit & VBAN_BIT_RESOLUTION_MASK] * audio.frames *
+			     (int)audio.speakers);
+		return;
+	}
+
+	switch (header->format_bit) {
+	case VBAN_BITFMT_8_INT:
+		audio.format = AUDIO_FORMAT_U8BIT;
+		audio.data[0] = (const uint8_t *)payload;
+		break;
+	case VBAN_BITFMT_16_INT:
+		audio.format = AUDIO_FORMAT_16BIT;
+		audio.data[0] = (const uint8_t *)payload;
+		break;
+	case VBAN_BITFMT_24_INT:
+		audio.format = AUDIO_FORMAT_FLOAT_PLANAR;
+		convert_24le_to_fltp(s, &audio, payload);
+		break;
+	case VBAN_BITFMT_32_INT:
+		audio.format = AUDIO_FORMAT_32BIT;
+		audio.data[0] = (const uint8_t *)payload;
+		break;
+	case VBAN_BITFMT_32_FLOAT:
+		audio.format = AUDIO_FORMAT_FLOAT;
+		audio.data[0] = (const uint8_t *)payload;
+		break;
+	default:
+		blog(LOG_ERROR, "Unsupported format %d", header->format_bit);
+		return;
+	}
+
+	audio.timestamp = os_gettime_ns() - (uint64_t)audio.frames * 1000000000 / audio.samples_per_sec;
+
+	obs_source_output_audio(s->context, &audio);
+
+	(void)addr; // TODO: lock to compare stream_name and ip_from or send stream_name and ip_from at `update` callback.
 }
