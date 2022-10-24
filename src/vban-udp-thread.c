@@ -116,7 +116,12 @@ void *vban_udp_thread_main(void *data)
 
 		pthread_mutex_lock(&dev->mutex);
 		for (struct source_list_s *src = dev->sources; src; src = src->next) {
-			src->cb(buf, ret, &addr, src->data);
+			if ((addr.sin_addr.s_addr & src->mask.s_addr) != (src->addr.s_addr & src->mask.s_addr))
+				continue;
+			if (src->stream_name[0] &&
+			    strncmp(header->streamname, src->stream_name, VBAN_STREAM_NAME_SIZE) != 0)
+				continue;
+			src->cb(buf, ret, src->data);
 		}
 		pthread_mutex_unlock(&dev->mutex);
 	}

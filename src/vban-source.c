@@ -46,7 +46,7 @@ static const char *vban_src_get_name(void *type_data)
 	return obs_module_text("VBAN.src");
 }
 
-static void vban_src_callback(const char *buf, size_t buf_len, const struct sockaddr_in *addr, void *data);
+static void vban_src_callback(const char *buf, size_t buf_len, void *data);
 
 static void update_port(struct vban_src_s *s, int port)
 {
@@ -79,12 +79,27 @@ static void vban_src_update(void *data, obs_data_t *settings)
 {
 	struct vban_src_s *s = data;
 
-	int port = (int)obs_data_get_int(settings, "port");
-	if (port != s->port)
-		update_port(s, port);
+	bool port_changed = false;
+	bool ip_changed = false;
+	bool name_changed = false;
 
-	update_string(&s->stream_name, settings, "stream_name");
-	update_string(&s->ip_from, settings, "ip_from");
+	int port = (int)obs_data_get_int(settings, "port");
+	if (port != s->port) {
+		update_port(s, port);
+		port_changed = true;
+	}
+
+	if (update_string(&s->stream_name, settings, "stream_name"))
+		name_changed = true;
+
+	if (update_string(&s->ip_from, settings, "ip_from"))
+		ip_changed = true;
+
+	if (port_changed || name_changed)
+		vban_udp_set_name(s->vban, vban_src_callback, s, s->stream_name);
+
+	if (port_changed || ip_changed)
+		vban_udp_set_host(s->vban, vban_src_callback, s, s->ip_from);
 }
 
 static obs_properties_t *vban_src_get_properties(void *data)
@@ -163,7 +178,7 @@ static void convert_24le_to_fltp(struct vban_src_s *s, struct obs_source_audio *
 	}
 }
 
-static void vban_src_callback(const char *buf, size_t buf_len, const struct sockaddr_in *addr, void *data)
+static void vban_src_callback(const char *buf, size_t buf_len, void *data)
 {
 	struct vban_src_s *s = data;
 
@@ -242,6 +257,4 @@ static void vban_src_callback(const char *buf, size_t buf_len, const struct sock
 	s->cnt_frames += audio.frames;
 
 	obs_source_output_audio(s->context, &audio);
-
-	(void)addr; // TODO: lock to compare stream_name and ip_from or send stream_name and ip_from at `update` callback.
 }

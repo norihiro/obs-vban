@@ -3,7 +3,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <util/threading.h>
+#include "vban.h"
 #include "vban-udp.h"
+#include "socket.h"
 
 struct source_list_s
 {
@@ -12,6 +14,10 @@ struct source_list_s
 
 	struct source_list_s *next;
 	struct source_list_s **prev_next;
+
+	struct in_addr addr;
+	struct in_addr mask;
+	char stream_name[VBAN_STREAM_NAME_SIZE];
 };
 
 struct vban_udp_s

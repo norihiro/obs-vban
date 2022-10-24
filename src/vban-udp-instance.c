@@ -159,3 +159,65 @@ void vban_udp_remove_callback(vban_udp_t *dev, vban_udp_cb_t cb, void *data)
 
 	pthread_mutex_unlock(&dev->mutex);
 }
+
+static void copy_stream_name(char *dst, const char *src)
+{
+	int i = 0;
+	for (; i < VBAN_STREAM_NAME_SIZE && src[i]; i++)
+		dst[i] = src[i];
+	for (; i < VBAN_STREAM_NAME_SIZE; i++)
+		dst[i] = 0;
+}
+
+void vban_udp_set_name(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char *name)
+{
+	blog(LOG_INFO, "stream-name: '%s'", name);
+
+	pthread_mutex_lock(&dev->mutex);
+
+	for (struct source_list_s *item = dev->sources; item; item = item->next) {
+		if (item->cb != cb)
+			continue;
+		if (item->data != data)
+			continue;
+
+		copy_stream_name(item->stream_name, name);
+		break;
+	}
+
+	pthread_mutex_unlock(&dev->mutex);
+}
+
+void vban_udp_set_host(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char *host)
+{
+	struct in_addr addr = {0};
+	struct in_addr mask = {0};
+#ifdef _WIN32
+	if (host && *host) {
+		addr.s_addr = inet_addr(host);
+		if (addr.s_addr != INADDR_NONE)
+			mask.s_addr = 0xFFFFFFFF;
+	}
+#else
+	if (host && *host && inet_aton(host, &addr))
+		mask.s_addr = 0xFFFFFFFF;
+#endif
+
+	blog(LOG_INFO, "host address: %s", inet_ntoa(addr));
+	blog(LOG_INFO, "host netmask: %s", inet_ntoa(mask));
+
+	pthread_mutex_lock(&dev->mutex);
+
+	for (struct source_list_s *item = dev->sources; item; item = item->next) {
+		if (item->cb != cb)
+			continue;
+		if (item->data != data)
+			continue;
+
+		item->addr = addr;
+		item->mask = mask;
+		break;
+	}
+
+	pthread_mutex_unlock(&dev->mutex);
+}
