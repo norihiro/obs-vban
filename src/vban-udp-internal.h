@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
+#include <util/threading.h>
 #include "vban-udp.h"
 
 struct source_list_s

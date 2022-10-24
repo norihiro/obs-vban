@@ -17,9 +17,11 @@
  */
 
 #include <obs-module.h>
+#include <stdio.h>
 #include <util/threading.h>
 #include "plugin-macros.generated.h"
 #include "vban-udp-internal.h"
+#include "socket.h"
 #include <vban.h>
 
 static bool init_socket(vban_udp_t *dev)
@@ -46,7 +48,7 @@ static bool init_socket(vban_udp_t *dev)
 	ret = bind(dev->vban_socket, (struct sockaddr const *)&si_me, sizeof(si_me));
 	if (ret < 0) {
 		blog(LOG_ERROR, "Failed to bind");
-		socket_close(dev->vban_socket);
+		closesocket(dev->vban_socket);
 		dev->vban_socket = INVALID_SOCKET;
 		return false;
 	}
@@ -65,7 +67,7 @@ static bool select_socket(vban_udp_t *dev)
 		.tv_usec = 100000,
 	};
 
-	int ret = select(dev->vban_socket + 1, &fd_read, NULL, NULL, &tv);
+	int ret = select((int)dev->vban_socket + 1, &fd_read, NULL, NULL, &tv);
 	if (ret > 0 && FD_ISSET(dev->vban_socket, &fd_read))
 		return true;
 

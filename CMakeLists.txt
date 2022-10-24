@@ -61,6 +61,7 @@ if(OS_WINDOWS)
 	endif()
 
 	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
+	target_link_libraries(${CMAKE_PROJECT_NAME} wsock32 ws2_32)
 endif()
 
 if(OS_LINUX)

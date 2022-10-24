@@ -29,6 +29,10 @@
 #define VBAN_CHANNELS_MAX_NB        256
 #define VBAN_SAMPLES_MAX_NB         256
 
+#ifdef _WIN32
+#pragma pack(1)
+#endif
+
 struct VBanHeader
 {
     uint32_t    vban;                               /* contains 'V' 'B', 'A', 'N' */
@@ -38,8 +42,15 @@ struct VBanHeader
     uint8_t     format_bit;                         /* mask = 0x07 (nb Byte integer from 1 to 4) */
     char        streamname[VBAN_STREAM_NAME_SIZE];  /* stream name */
     uint32_t    nuFrame;                            /* growing frame number. */
-} __attribute__((packed));
+}
+#ifndef _WIN32
+__attribute__((packed))
+#endif
+	;
 
+#ifdef _WIN32
+#pragma pack()
+#endif
 
 #define VBAN_SR_MASK                0x1F
 #define VBAN_SR_MAXNUMBER           21

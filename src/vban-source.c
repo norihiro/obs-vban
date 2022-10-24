@@ -36,8 +36,9 @@ struct vban_src_s
 	DARRAY(float) buffer;
 };
 
-static const char *vban_src_get_name(void *)
+static const char *vban_src_get_name(void *type_data)
 {
+	UNUSED_PARAMETER(type_data);
 	return obs_module_text("VBAN.src");
 }
 
@@ -74,7 +75,7 @@ static void vban_src_update(void *data, obs_data_t *settings)
 {
 	struct vban_src_s *s = data;
 
-	int port = obs_data_get_int(settings, "port");
+	int port = (int)obs_data_get_int(settings, "port");
 	if (port != s->port)
 		update_port(s, port);
 

@@ -18,7 +18,7 @@ inline static bool valid_socket(socket_t fd)
 	return fd >= 0;
 }
 
-inline static int socket_close(socket_t fd)
+inline static int closesocket(socket_t fd)
 {
 	return close(fd);
 }
