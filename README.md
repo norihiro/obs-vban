@@ -1,4 +1,4 @@
-# OBS VBAN Plugin
+# OBS VBAN Audio Plugin
 
 ## Introduction
 
