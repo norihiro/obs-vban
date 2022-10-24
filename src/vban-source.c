@@ -191,17 +191,6 @@ static void vban_src_callback(const char *buf, size_t buf_len, const struct sock
 		return;
 	}
 
-	if (s->cnt_packets > 0 && s->lastframe + 1 != header->nuFrame) {
-		blog(LOG_ERROR, "source '%s': missing %d packet(s)", obs_source_get_name(s->context),
-		     header->nuFrame - s->lastframe);
-		s->cnt_missing_packets++;
-	}
-	s->lastframe = header->nuFrame;
-	// TODO: pad missing packets
-
-	s->cnt_packets++;
-	s->cnt_frames += audio.frames;
-
 	switch (header->format_bit) {
 	case VBAN_BITFMT_8_INT:
 		audio.format = AUDIO_FORMAT_U8BIT;
@@ -229,6 +218,28 @@ static void vban_src_callback(const char *buf, size_t buf_len, const struct sock
 	}
 
 	audio.timestamp = os_gettime_ns() - (uint64_t)audio.frames * 1000000000 / audio.samples_per_sec;
+
+	if (s->cnt_packets > 0 && s->lastframe + 1 != header->nuFrame) {
+		uint32_t n_packets = header->nuFrame - s->lastframe - 1;
+		blog(LOG_ERROR, "source '%s': missing %d packet(s)", obs_source_get_name(s->context), n_packets);
+		s->cnt_missing_packets++;
+
+		uint64_t lost_ns = (uint64_t)n_packets * audio.frames * 1000000000 / audio.samples_per_sec;
+
+		if (lost_ns < 70 * 1000000) {
+			uint64_t ts_backup = audio.timestamp;
+			for (uint32_t i = 0; i < n_packets; i++) {
+				audio.timestamp = ts_backup - lost_ns * (n_packets - i);
+				blog(LOG_DEBUG, "vban-source: Padding packet ts=%" PRIu64, audio.timestamp);
+				obs_source_output_audio(s->context, &audio);
+			}
+			audio.timestamp = ts_backup;
+		}
+	}
+	s->lastframe = header->nuFrame;
+
+	s->cnt_packets++;
+	s->cnt_frames += audio.frames;
 
 	obs_source_output_audio(s->context, &audio);
 
