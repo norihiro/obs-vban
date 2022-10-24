@@ -34,6 +34,10 @@ struct vban_src_s
 	vban_udp_t *vban;
 
 	DARRAY(float) buffer;
+	uint32_t lastframe;
+	uint32_t cnt_missing_packets;
+	uint64_t cnt_packets;
+	uint64_t cnt_frames;
 };
 
 static const char *vban_src_get_name(void *type_data)
@@ -120,6 +124,10 @@ static void vban_src_destroy(void *data)
 		vban_udp_release(s->vban);
 	}
 
+	blog(s->cnt_missing_packets ? LOG_ERROR : LOG_INFO,
+	     "source '%s': received %" PRIu64 " packets, %" PRIu64 " frames, %d time(s) missed packets",
+	     obs_source_get_name(s->context), s->cnt_packets, s->cnt_frames, s->cnt_missing_packets);
+
 	bfree(s->stream_name);
 	bfree(s->ip_from);
 	da_free(s->buffer);
@@ -182,6 +190,17 @@ static void vban_src_callback(const char *buf, size_t buf_len, const struct sock
 			     (int)audio.speakers);
 		return;
 	}
+
+	if (s->cnt_packets > 0 && s->lastframe + 1 != header->nuFrame) {
+		blog(LOG_ERROR, "source '%s': missing %d packet(s)", obs_source_get_name(s->context),
+		     header->nuFrame - s->lastframe);
+		s->cnt_missing_packets++;
+	}
+	s->lastframe = header->nuFrame;
+	// TODO: pad missing packets
+
+	s->cnt_packets++;
+	s->cnt_frames += audio.frames;
 
 	switch (header->format_bit) {
 	case VBAN_BITFMT_8_INT:
