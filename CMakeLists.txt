@@ -44,6 +44,8 @@ set(PLUGIN_SOURCES
 	src/vban-source.c
 	src/vban-udp-instance.c
 	src/vban-udp-thread.c
+	src/vban-output.c
+	src/vban-output-thread.c
 )
 
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
@@ -58,6 +60,7 @@ if(OS_WINDOWS)
 	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
 	if (MSVC)
 		add_definitions(/MP /d2FH4-)
+		add_definitions("-D_CRT_SECURE_NO_WARNINGS") # to avoid a warning for `strncpy`
 	endif()
 
 	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
