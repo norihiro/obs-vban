@@ -2,9 +2,9 @@
 
 ## Introduction
 
-This plugin provides audio source from VBAN, an audio over UDP protocol.
+This plugin provides audio source from and output to VBAN, an audio over UDP protocol.
 
-## Properties
+## Properties for VBAN Audio Source
 
 Streams will be identified by these two properties. If your computer is receiving multiple VBAN streams, please set them.
 
@@ -17,6 +17,26 @@ If empty, any sources can be received.
 
 Set name of your stream.
 If empty, any stream will be received.
+
+## Properties for VBAN Audio Output and Filter
+
+### IP Address To
+Set IP address of your receiver.
+
+### Stream Name
+Set name of your stream.
+
+### Track
+Choose the track number in OBS Studio to be streamed.
+This property is not available for filters.
+
+### Sampling Rate
+Choose the sampling rate to stream.
+The default is same as OBS Studio so that no resample will happen.
+If you choose different sampling rate, a resampler will convert the sampling rate.
+
+### Format
+Choose the format of each sample. Available options are 16-bit and 24-bit integers and 32-bit floating point.
 
 ## Build and install
 ### Linux
