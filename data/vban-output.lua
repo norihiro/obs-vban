@@ -66,7 +66,10 @@ end
 
 function script_defaults(settings)
 	local d = obs.obs_output_defaults(vbanout_id)
-	obs.obs_data_apply(settings, d)
+	local nn = {'port', 'mixer', 'format_bit'}
+	for k, n in pairs(nn) do
+		obs.obs_data_set_default_int(settings, n, obs.obs_data_get_int(d, n))
+	end
 	obs.obs_data_release(d)
 end
 
