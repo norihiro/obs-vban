@@ -24,11 +24,13 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 extern const struct obs_source_info vban_source_info;
 extern const struct obs_output_info vban_output_info;
+extern const struct obs_source_info vban_filter_info;
 
 bool obs_module_load(void)
 {
 	obs_register_source(&vban_source_info);
 	obs_register_output(&vban_output_info);
+	obs_register_source(&vban_filter_info);
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	return true;
 }

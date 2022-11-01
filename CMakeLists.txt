@@ -46,6 +46,7 @@ set(PLUGIN_SOURCES
 	src/vban-udp-thread.c
 	src/vban-output.c
 	src/vban-output-thread.c
+	src/vban-filter.c
 )
 
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
