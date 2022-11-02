@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(obs-vban VERSION 0.2.0)
+project(obs-vban VERSION 0.2.1)
 
 # Replace `Your Name Here` with the name (yours or your organization's) you want
 # to see as the author of the plugin (in the plugin's metadata itself and in the installers)
