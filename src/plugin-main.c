@@ -31,7 +31,7 @@ bool obs_module_load(void)
 	obs_register_source(&vban_source_info);
 	obs_register_output(&vban_output_info);
 	obs_register_source(&vban_filter_info);
-	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
+	blog(LOG_INFO, "plugin loaded (version %s)", PLUGIN_VERSION);
 	return true;
 }
 

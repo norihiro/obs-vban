@@ -302,6 +302,8 @@ static void vban_out_loop(struct vban_out_s *v)
 		}
 	}
 
+	blog(LOG_INFO, "Total number of output packets: %" PRIu32, t.header->nuFrame);
+
 	if (t.resampler)
 		audio_resampler_destroy(t.resampler);
 	for (size_t i = 0; i < MAX_AV_PLANES; i++)

@@ -57,9 +57,10 @@ static bool vban_out_start(void *data)
 static void vban_out_stop(void *data, uint64_t ts)
 {
 	struct vban_out_s *v = data;
-	blog(LOG_INFO, "vban_out_sop: stoping...");
+	blog(LOG_INFO, "vban_out_stop: stoping...");
 
-	obs_output_end_data_capture(v->context);
+	if (v->context)
+		obs_output_end_data_capture(v->context);
 
 	v->cont = false;
 	os_event_signal(v->event);
