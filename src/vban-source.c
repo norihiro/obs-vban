@@ -236,7 +236,8 @@ static void vban_src_callback(const char *buf, size_t buf_len, void *data)
 
 	if (s->cnt_packets > 0 && s->lastframe + 1 != header->nuFrame) {
 		uint32_t n_packets = header->nuFrame - s->lastframe - 1;
-		blog(LOG_ERROR, "source '%s': missing %d packet(s)", obs_source_get_name(s->context), n_packets);
+		blog(LOG_ERROR, "source '%s': missing %d packet(s) at frame %u", obs_source_get_name(s->context),
+		     n_packets, header->nuFrame);
 		s->cnt_missing_packets++;
 
 		uint64_t lost_ns = (uint64_t)n_packets * audio.frames * 1000000000 / audio.samples_per_sec;
