@@ -50,7 +50,7 @@ static bool init_socket(vban_udp_t *dev)
 
 	ret = bind(dev->vban_socket, (struct sockaddr const *)&si_me, sizeof(si_me));
 	if (ret < 0) {
-		blog(LOG_ERROR, "Failed to bind");
+		blog(LOG_ERROR, "Failed to bind port %d", (int)dev->port);
 		closesocket(dev->vban_socket);
 		dev->vban_socket = INVALID_SOCKET;
 		return false;
