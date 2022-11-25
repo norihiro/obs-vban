@@ -40,7 +40,7 @@ static bool init_socket(vban_udp_t *dev)
 	}
 
 	int opt = 1;
-	setsockopt(dev->vban_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
+	setsockopt(dev->vban_socket, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(int));
 
 	struct sockaddr_in si_me;
 	memset(&si_me, 0, sizeof(si_me));
