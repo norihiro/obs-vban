@@ -59,6 +59,14 @@ static bool init_socket(vban_udp_t *dev)
 	return true;
 }
 
+static void finalize_socket(vban_udp_t *dev)
+{
+	if (dev->vban_socket != INVALID_SOCKET) {
+		closesocket(dev->vban_socket);
+		dev->vban_socket = INVALID_SOCKET;
+	}
+}
+
 static bool select_socket(vban_udp_t *dev)
 {
 	fd_set fd_read;
@@ -125,6 +133,8 @@ void *vban_udp_thread_main(void *data)
 		}
 		pthread_mutex_unlock(&dev->mutex);
 	}
+
+	finalize_socket(dev);
 
 	return NULL;
 }
