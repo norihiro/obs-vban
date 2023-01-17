@@ -291,7 +291,7 @@ static void vban_out_loop(struct vban_out_s *v)
 			memmove(t.buffer.array, (char *)t.buffer.array + n, t.buffer.num - n);
 			t.buffer.num -= n;
 			sendto(t.vban_socket, vban_buf, VBAN_HEADER_SIZE + n, 0, (struct sockaddr *)&addr,
-			       sizeof(addr));
+			       (socklen_t)sizeof(addr));
 
 #ifdef DEBUG_PACKET
 			blog(LOG_DEBUG, "sent packet nuFrame: %d", t.header->nuFrame);
