@@ -23,20 +23,20 @@ include(cmake/ObsPluginHelpers.cmake)
 
 configure_file(
 	src/plugin-macros.h.in
-	../src/plugin-macros.generated.h
+	plugin-macros.generated.h
 )
 configure_file(
 	installer/installer-Windows.iss.in
-	../installer/installer-Windows.generated.iss
+	installer-Windows.generated.iss
 )
 
 configure_file(
 	ci/ci_includes.sh.in
-	../ci/ci_includes.generated.sh
+	ci/ci_includes.generated.sh
 )
 configure_file(
 	ci/ci_includes.cmd.in
-	../ci/ci_includes.generated.cmd
+	ci/ci_includes.generated.cmd
 )
 
 set(PLUGIN_SOURCES
@@ -55,7 +55,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	OBS::libobs
 )
 
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE vban)
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+	vban
+	${CMAKE_CURRENT_BINARY_DIR}
+)
 
 if(OS_WINDOWS)
 	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
