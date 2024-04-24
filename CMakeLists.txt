@@ -18,25 +18,14 @@ set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 # TAKE NOTE: No need to edit things past this point
 
-find_package(libobs REQUIRED)
-include(cmake/ObsPluginHelpers.cmake)
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+	find_package(libobs REQUIRED)
+	include(cmake/ObsPluginHelpers.cmake)
+endif()
 
 configure_file(
 	src/plugin-macros.h.in
 	plugin-macros.generated.h
-)
-configure_file(
-	installer/installer-Windows.iss.in
-	installer-Windows.generated.iss
-)
-
-configure_file(
-	ci/ci_includes.sh.in
-	ci/ci_includes.generated.sh
-)
-configure_file(
-	ci/ci_includes.cmd.in
-	ci/ci_includes.generated.cmd
 )
 
 set(PLUGIN_SOURCES
@@ -49,13 +38,13 @@ set(PLUGIN_SOURCES
 	src/vban-filter.c
 )
 
-add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
+add_library(${PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME}
 	OBS::libobs
 )
 
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
 	vban
 	${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -67,23 +56,40 @@ if(OS_WINDOWS)
 		add_definitions("-D_CRT_SECURE_NO_WARNINGS") # to avoid a warning for `strncpy`
 	endif()
 
-	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
-	target_link_libraries(${CMAKE_PROJECT_NAME} wsock32 ws2_32)
+	target_link_libraries(${PROJECT_NAME} OBS::w32-pthreads)
+	target_link_libraries(${PROJECT_NAME} wsock32 ws2_32)
 endif()
 
 if(OS_LINUX)
-	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
+	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
 endif()
 
 if(APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
 
-	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
+	set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 	set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
-	set(MACOSX_PLUGIN_BUNDLE_VERSION "${CMAKE_PROJECT_VERSION}")
+	set(MACOSX_PLUGIN_BUNDLE_VERSION "${PROJECT_VERSION}")
 	set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
 endif()
 
-setup_plugin_target(${CMAKE_PROJECT_NAME})
+setup_plugin_target(${PROJECT_NAME})
 
 configure_file(installer/installer-macOS.pkgproj.in installer-macOS.generated.pkgproj)
+
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+	configure_file(
+		installer/installer-Windows.iss.in
+		installer-Windows.generated.iss
+	)
+
+	configure_file(
+		ci/ci_includes.sh.in
+		ci/ci_includes.generated.sh
+	)
+
+	configure_file(
+		ci/ci_includes.cmd.in
+		ci/ci_includes.generated.cmd
+	)
+endif()
