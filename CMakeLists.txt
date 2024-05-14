@@ -11,6 +11,7 @@ set(PLUGIN_AUTHOR "Norihiro Kamae")
 set(MACOS_BUNDLEID "net.nagater.obs-vban")
 set(MACOS_PACKAGE_UUID "21123AEA-B27F-47AE-BAFA-857FF1A9AB87")
 set(MACOS_INSTALLER_UUID "BF0251EB-CB6D-48C7-957F-BC20B79B9D42")
+set(PLUGIN_URL "https://obsproject.com/forum/resources/vban-audio-plugin.1623/")
 set(ID_PREFIX "net.nagater.obs-vban.")
 
 # Replace `me@contoso.com` with the maintainer email address you want to put in Linux packages
