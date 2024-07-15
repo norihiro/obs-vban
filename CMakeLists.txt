@@ -63,6 +63,7 @@ endif()
 
 if(OS_LINUX)
 	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+	target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,defs)
 endif()
 
 if(APPLE)
