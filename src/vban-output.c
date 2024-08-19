@@ -23,6 +23,10 @@
 #include "vban.h"
 #include "vban-output-internal.h"
 
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 1, 0)
+#define AUDIO_ONLY_WORKAROUND
+#endif
+
 static const char *vban_out_get_name(void *type_data)
 {
 	UNUSED_PARAMETER(type_data);
@@ -196,24 +200,31 @@ static void vban_out_destroy(void *data)
 	blog(LOG_INFO, "vban_out_destroy destroyed.");
 }
 
+#ifdef AUDIO_ONLY_WORKAROUND
 void vban_out_raw_video(void *data, struct video_data *frame)
 {
 	// Audio does not arrive until first video is sent.
-	// TODO: Once it's fixed, remove `OBS_OUTPUT_VIDEO` from `flags` and remove this callback.
 	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(frame);
 }
+#endif
 
 struct obs_output_info vban_output_info = {
 	.id = ID_PREFIX "output",
-	.flags = OBS_OUTPUT_AUDIO | OBS_OUTPUT_VIDEO,
+	.flags = OBS_OUTPUT_AUDIO
+#ifdef AUDIO_ONLY_WORKAROUND
+		 | OBS_OUTPUT_VIDEO
+#endif
+	,
 	.get_name = vban_out_get_name,
 	.create = vban_out_create,
 	.destroy = vban_out_destroy,
 	.start = vban_out_start,
 	.stop = vban_out_stop,
 	.raw_audio = vban_out_raw_audio,
+#ifdef AUDIO_ONLY_WORKAROUND
 	.raw_video = vban_out_raw_video,
+#endif
 	.update = vban_out_update,
 	.get_defaults = vban_out_get_defaults,
 	.get_properties = vban_out_get_properties,
