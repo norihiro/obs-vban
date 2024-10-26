@@ -1,4 +1,4 @@
-# OBS VBAN Audio Plugin
+# VBAN Audio Plugin for OBS Studio
 
 ## Introduction
 
