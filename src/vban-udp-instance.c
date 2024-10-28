@@ -21,6 +21,7 @@
 #include "plugin-macros.generated.h"
 #include <util/threading.h>
 #include "vban-udp-internal.h"
+#include "resolve-thread.h"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static vban_udp_t *devices = NULL;
@@ -188,24 +189,9 @@ void vban_udp_set_name(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char
 	pthread_mutex_unlock(&dev->mutex);
 }
 
-void vban_udp_set_host(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char *host)
+static void vban_udp_set_addr_mask(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const struct in_addr *addr,
+				   const struct in_addr *mask)
 {
-	struct in_addr addr = {0};
-	struct in_addr mask = {0};
-#ifdef _WIN32
-	if (host && *host) {
-		addr.s_addr = inet_addr(host);
-		if (addr.s_addr != INADDR_NONE)
-			mask.s_addr = 0xFFFFFFFF;
-	}
-#else
-	if (host && *host && inet_aton(host, &addr))
-		mask.s_addr = 0xFFFFFFFF;
-#endif
-
-	blog(LOG_INFO, "host address: %s", inet_ntoa(addr));
-	blog(LOG_INFO, "host netmask: %s", inet_ntoa(mask));
-
 	pthread_mutex_lock(&dev->mutex);
 
 	for (struct source_list_s *item = dev->sources; item; item = item->next) {
@@ -214,10 +200,114 @@ void vban_udp_set_host(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char
 		if (item->data != data)
 			continue;
 
-		item->addr = addr;
-		item->mask = mask;
+		item->addr = *addr;
+		item->mask = *mask;
+		item->resolving = NULL;
 		break;
 	}
 
 	pthread_mutex_unlock(&dev->mutex);
+}
+
+struct vban_udp_set_host_thread_s
+{
+	vban_udp_t *dev;
+};
+
+static inline void mark_resolving(vban_udp_t *dev, vban_udp_cb_t cb, void *data,
+				  struct vban_udp_set_host_thread_s *resolving)
+{
+	pthread_mutex_lock(&dev->mutex);
+
+	for (struct source_list_s *item = dev->sources; item; item = item->next) {
+		if (item->cb != cb)
+			continue;
+		if (item->data != data)
+			continue;
+
+		/* If there is an earlier resolving thread, the result from the
+		 * earlier thread will be ignored even if the earlier thread
+		 * takes more time than the later resolving thread(s). */
+		item->resolving = resolving;
+		break;
+	}
+
+	pthread_mutex_unlock(&dev->mutex);
+}
+
+static void resolve_finalize(struct vban_udp_set_host_thread_s *ctx, const struct in_addr *addr)
+{
+	pthread_mutex_lock(&ctx->dev->mutex);
+
+	for (struct source_list_s *item = ctx->dev->sources; item; item = item->next) {
+		if (item->resolving != ctx)
+			continue;
+
+		if (addr) {
+			struct in_addr mask = {0};
+			mask.s_addr = 0xFFFFFFFF;
+			item->addr = *addr;
+			item->mask = mask;
+		}
+		item->resolving = NULL;
+		break;
+	}
+
+	pthread_mutex_unlock(&ctx->dev->mutex);
+
+	vban_udp_release(ctx->dev);
+	bfree(ctx);
+}
+
+static void resolve_succeeded(void *data, const struct in_addr *addr)
+{
+	struct vban_udp_set_host_thread_s *ctx = data;
+	resolve_finalize(ctx, addr);
+}
+
+static void resolve_failed(void *data)
+{
+	struct vban_udp_set_host_thread_s *ctx = data;
+	resolve_finalize(ctx, NULL);
+}
+
+void vban_udp_set_host(vban_udp_t *dev, vban_udp_cb_t cb, void *data, const char *host)
+{
+	struct in_addr addr = {0};
+	struct in_addr mask = {0};
+
+	if (!host || !*host) {
+		blog(LOG_INFO, "host address: %s (accepting everything)", inet_ntoa(addr));
+		vban_udp_set_addr_mask(dev, cb, data, &addr, &mask);
+		return;
+	}
+
+	if (inet_pton(AF_INET, host, &addr)) {
+		blog(LOG_INFO, "host address: %s", inet_ntoa(addr));
+		mask.s_addr = 0xFFFFFFFF;
+		vban_udp_set_addr_mask(dev, cb, data, &addr, &mask);
+		return;
+	}
+
+	resolve_thread_t *rt = resolve_thread_create(host);
+	if (!rt)
+		return;
+
+	dev = vban_udp_get_ref(dev);
+	if (!dev) {
+		blog(LOG_ERROR, "vban_udp_set_host: Error: Cannot get reference");
+		resolve_thread_release(rt);
+		return;
+	}
+
+	struct vban_udp_set_host_thread_s *ctx = bzalloc(sizeof(struct vban_udp_set_host_thread_s));
+	ctx->dev = dev;
+	mark_resolving(dev, cb, data, ctx);
+
+	resolve_thread_set_callbacks(rt, ctx, resolve_succeeded, resolve_failed);
+
+	blog(LOG_DEBUG, "%p: Resolving '%s'", ctx, host);
+	resolve_thread_start(rt);
+
+	resolve_thread_release(rt);
 }

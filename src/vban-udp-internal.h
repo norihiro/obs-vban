@@ -11,6 +11,7 @@ struct source_list_s
 {
 	vban_udp_cb_t cb;
 	void *data;
+	struct vban_udp_set_host_thread_s *resolving;
 
 	struct source_list_s *next;
 	struct source_list_s **prev_next;
