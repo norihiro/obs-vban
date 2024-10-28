@@ -13,6 +13,10 @@
 #include "plugin-macros.generated.h"
 #include "resolve-thread.h"
 
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+static volatile long long n_resolving = 0;
+
 struct resolve_thread_s
 {
 	char *name;
@@ -62,6 +66,10 @@ bool resolve_thread_start(const char *name, void *cb_data, resolve_thread_resolv
 		return false;
 	}
 
+	pthread_mutex_lock(&mutex);
+	n_resolving++;
+	pthread_mutex_unlock(&mutex);
+
 	struct resolve_thread_s *ctx = bzalloc(sizeof(struct resolve_thread_s));
 	ctx->name = bstrdup(name);
 	ctx->resolved_cb = resolved_cb;
@@ -107,5 +115,21 @@ static void *resolve_thread_main(void *data)
 
 	bfree(ctx->name);
 	bfree(ctx);
+
+	pthread_mutex_lock(&mutex);
+	if (!--n_resolving)
+		pthread_cond_signal(&cond);
+	pthread_mutex_unlock(&mutex);
+
 	return NULL;
+}
+
+void resolve_thread_wait_all()
+{
+	pthread_mutex_lock(&mutex);
+	while (n_resolving > 0) {
+		blog(LOG_INFO, "resolve_thread_wait_all: There are %lld resolving instances. Waiting...", n_resolving);
+		pthread_cond_wait(&cond, &mutex);
+	}
+	pthread_mutex_unlock(&mutex);
 }

@@ -26,6 +26,8 @@ extern const struct obs_source_info vban_source_info;
 extern const struct obs_output_info vban_output_info;
 extern const struct obs_source_info vban_filter_info;
 
+void resolve_thread_wait_all();
+
 bool obs_module_load(void)
 {
 	obs_register_source(&vban_source_info);
@@ -37,5 +39,6 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
+	resolve_thread_wait_all();
 	blog(LOG_INFO, "plugin unloaded");
 }
