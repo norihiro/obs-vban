@@ -22,6 +22,7 @@
 #include "vban.h"
 #include "socket.h"
 #include "vban-output-internal.h"
+#include "resolve-thread.h"
 
 struct output_thread_s
 {
@@ -126,6 +127,35 @@ static bool thread_loop_start(struct output_thread_s *t)
 	return true;
 }
 
+static bool bring_settings_unlocked(struct vban_out_s *v, struct output_thread_s *t, struct sockaddr_in *addr)
+{
+	bool restart = false;
+
+	if (v->rt && resolve_thread_done(v->rt)) {
+		resolve_thread_get_addr(v->rt, &v->ip_to);
+		resolve_thread_release(v->rt);
+		v->rt = NULL;
+	}
+
+	addr->sin_port = htons(v->port);
+	addr->sin_addr.s_addr = v->ip_to.s_addr;
+
+	if (v->frequency && v->frequency != t->frequency_vban) {
+		blog(LOG_INFO, "restarting to change frequency from %d to %d", (int)t->frequency_vban,
+		     (int)v->frequency);
+		restart = true;
+	}
+
+	if (v->format_bit != t->header->format_bit) {
+		blog(LOG_INFO, "restarting to change format_bit from %d to %d", t->header->format_bit, v->format_bit);
+		restart = true;
+	}
+
+	strncpy(t->header->streamname, v->stream_name, VBAN_STREAM_NAME_SIZE);
+
+	return restart;
+}
+
 static void resample_from_packet(struct output_thread_s *t, const struct audio_data *pkt)
 {
 	uint8_t *data[MAX_AV_PLANES] = {0};
@@ -228,7 +258,6 @@ static void vban_out_loop(struct vban_out_s *v)
 		return;
 	}
 
-	bool restart = false;
 	unsigned long wait_ms = 100;
 
 	while (v->cont) {
@@ -243,19 +272,9 @@ static void vban_out_loop(struct vban_out_s *v)
 		if (v->buffer.size && !pkt.frames) {
 			circlebuf_pop_front(&v->buffer, &pkt, sizeof(pkt));
 		}
-		addr.sin_port = htons(v->port);
-		addr.sin_addr.s_addr = v->ip_to.s_addr;
-		if (v->frequency && v->frequency != t.frequency_vban) {
-			blog(LOG_INFO, "restarting to change frequency from %d to %d", (int)t.frequency_vban,
-			     (int)v->frequency);
-			restart = true;
-		}
-		if (v->format_bit != t.header->format_bit) {
-			blog(LOG_INFO, "restarting to change format_bit from %d to %d", t.header->format_bit,
-			     v->format_bit);
-			restart = true;
-		}
-		strncpy(t.header->streamname, v->stream_name, VBAN_STREAM_NAME_SIZE);
+
+		bool restart = bring_settings_unlocked(v, &t, &addr);
+
 		pthread_mutex_unlock(&v->mutex);
 
 		if (restart)

@@ -23,6 +23,8 @@ struct vban_out_s
 	pthread_t thread;
 	volatile bool cont;
 
+	struct resolve_thread_s *rt;
+
 	struct circlebuf buffer;
 
 	uint64_t cnt_packets;

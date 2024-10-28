@@ -19,9 +19,11 @@
 #include <obs-module.h>
 #include <string.h>
 #include <util/platform.h>
+#include <util/threading.h>
 #include "plugin-macros.generated.h"
 #include "vban.h"
 #include "vban-output-internal.h"
+#include "resolve-thread.h"
 
 #if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 1, 0)
 #define AUDIO_ONLY_WORKAROUND
@@ -105,6 +107,27 @@ static bool update_string(char **opt, obs_data_t *settings, const char *name)
 	return false;
 }
 
+static void vban_out_update_ip_to(struct vban_out_s *v, const char *ip_to)
+{
+	if (v->rt) {
+		resolve_thread_release(v->rt);
+		v->rt = NULL;
+	}
+
+	struct in_addr addr = {0};
+	if (inet_pton(AF_INET, ip_to, &addr)) {
+		v->ip_to.s_addr = addr.s_addr;
+		return;
+	}
+
+	v->rt = resolve_thread_create(ip_to);
+	if (!v->rt)
+		return;
+
+	blog(LOG_DEBUG, "Resolving host name '%s'", ip_to);
+	resolve_thread_start(v->rt);
+}
+
 static void vban_out_update(void *data, obs_data_t *settings)
 {
 	struct vban_out_s *v = data;
@@ -115,7 +138,7 @@ static void vban_out_update(void *data, obs_data_t *settings)
 	update_string(&v->stream_name, settings, "stream_name");
 	const char *ip_to = obs_data_get_string(settings, "ip_to");
 	if (ip_to && *ip_to) {
-		v->ip_to.s_addr = inet_addr(ip_to);
+		vban_out_update_ip_to(v, ip_to);
 	}
 
 	if (v->context) {
@@ -190,6 +213,11 @@ static void vban_out_destroy(void *data)
 		circlebuf_pop_front(&v->buffer, &pkt, sizeof(pkt));
 		for (size_t i = 0; i < MAX_AV_PLANES; i++)
 			bfree(pkt.data[i]);
+	}
+
+	if (v->rt) {
+		resolve_thread_release(v->rt);
+		v->rt = NULL;
 	}
 
 	circlebuf_free(&v->buffer);
