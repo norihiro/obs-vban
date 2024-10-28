@@ -10,8 +10,8 @@ Streams will be identified by these two properties. If your computer is receivin
 
 ### IP Address From
 
-Set IP address of your source.
-If empty, any sources can be received.
+Set IP address or host name of your source.
+If empty, any sources can be received from.
 
 ### Stream Name
 
@@ -21,7 +21,7 @@ If empty, any stream will be received.
 ## Properties for VBAN Audio Output and Filter
 
 ### IP Address To
-Set IP address of your receiver.
+Set IP address or host name of your destination.
 
 ### Stream Name
 Set name of your stream.
