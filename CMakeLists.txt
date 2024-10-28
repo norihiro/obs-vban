@@ -37,6 +37,7 @@ set(PLUGIN_SOURCES
 	src/vban-output.c
 	src/vban-output-thread.c
 	src/vban-filter.c
+	src/resolve-thread.c
 )
 
 add_library(${PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
