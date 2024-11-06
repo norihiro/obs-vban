@@ -270,7 +270,7 @@ static void vban_out_loop(struct vban_out_s *v)
 		pthread_mutex_lock(&v->mutex);
 
 		if (v->buffer.size && !pkt.frames) {
-			circlebuf_pop_front(&v->buffer, &pkt, sizeof(pkt));
+			deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
 		}
 
 		bool restart = bring_settings_unlocked(v, &t, &addr);

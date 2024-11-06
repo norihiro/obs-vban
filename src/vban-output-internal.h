@@ -1,7 +1,15 @@
 #pragma once
 
 #include <util/threading.h>
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 1, 0)
 #include <util/circlebuf.h>
+#define deque circlebuf
+#define deque_pop_front circlebuf_pop_front
+#define deque_push_back circlebuf_push_back
+#define deque_free circlebuf_free
+#else
+#include <util/deque.h>
+#endif
 #include "socket.h"
 
 struct vban_out_s
@@ -25,7 +33,7 @@ struct vban_out_s
 
 	struct resolve_thread_s *rt;
 
-	struct circlebuf buffer;
+	struct deque buffer;
 
 	uint64_t cnt_packets;
 	uint64_t cnt_frames;

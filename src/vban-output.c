@@ -89,7 +89,7 @@ static void vban_out_raw_audio(void *data, struct audio_data *frames)
 
 	pthread_mutex_lock(&v->mutex);
 
-	circlebuf_push_back(&v->buffer, &pkt, sizeof(pkt));
+	deque_push_back(&v->buffer, &pkt, sizeof(pkt));
 
 	os_event_signal(v->event);
 
@@ -210,7 +210,7 @@ static void vban_out_destroy(void *data)
 
 	while (v->buffer.size) {
 		struct audio_data pkt;
-		circlebuf_pop_front(&v->buffer, &pkt, sizeof(pkt));
+		deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
 		for (size_t i = 0; i < MAX_AV_PLANES; i++)
 			bfree(pkt.data[i]);
 	}
@@ -220,7 +220,7 @@ static void vban_out_destroy(void *data)
 		v->rt = NULL;
 	}
 
-	circlebuf_free(&v->buffer);
+	deque_free(&v->buffer);
 	pthread_mutex_destroy(&v->mutex);
 	os_event_destroy(v->event);
 	bfree(v->stream_name);
