@@ -17,6 +17,8 @@ set(ID_PREFIX "net.nagater.obs-vban.")
 # Replace `me@contoso.com` with the maintainer email address you want to put in Linux packages
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
+option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
+
 # TAKE NOTE: No need to edit things past this point
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
@@ -65,6 +67,11 @@ endif()
 if(OS_LINUX)
 	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
 	target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,defs)
+
+	if(ENABLE_COVERAGE)
+		target_compile_options(${PROJECT_NAME} PRIVATE -coverage -fprofile-update=atomic)
+		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
+	endif()
 endif()
 
 if(APPLE)
