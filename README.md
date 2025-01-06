@@ -8,6 +8,15 @@ This plugin provides audio source from and output to VBAN, an audio over UDP pro
 
 Streams will be identified by these two properties. If your computer is receiving multiple VBAN streams, please set them.
 
+### Port
+
+Set the listening port number.
+The default is 6980.
+
+> [!TIP]
+> If you are running VoiceMeeter with VBAN, which uses the same port, you need to change the port number.
+> On VoiceMeeter, right-click a label "Info" on Outgoing Streams table. You can configure port number for each outgoing stream.
+
 ### IP Address From
 
 Set IP address or host name of your source.
@@ -19,6 +28,10 @@ Set name of your stream.
 If empty, any stream will be received.
 
 ## Properties for VBAN Audio Output and Filter
+
+### Port
+Set the port number.
+The default is 6980.
 
 ### IP Address To
 Set IP address or host name of your destination.
