@@ -67,6 +67,7 @@ enum VBanProtocol
     VBAN_PROTOCOL_AUDIO         =   0x00,
     VBAN_PROTOCOL_SERIAL        =   0x20,
     VBAN_PROTOCOL_TXT           =   0x40,
+    VBAN_PROTOCOL_SERVICE       =   0x60,
     VBAN_PROTOCOL_UNDEFINED_1   =   0x80,
     VBAN_PROTOCOL_UNDEFINED_2   =   0xA0,
     VBAN_PROTOCOL_UNDEFINED_3   =   0xC0,
