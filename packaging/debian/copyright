@@ -22,7 +22,7 @@ License: GPL-3+
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Comment:
  On Debian systems, the complete text of the GNU General
- Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+ Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
 Files:
  debian/*
