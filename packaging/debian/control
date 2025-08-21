@@ -1,0 +1,21 @@
+Source: vban-plugin-for-obs
+Section: video
+Priority: optional
+Maintainer: Norihiro Kamae <norihiro-ppa-plugins-for-obs-studio@nagater.net>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake,
+ obs-studio
+Conflicts: obs-vban
+Standards-Version: 4.6.2
+Homepage: https://github.com/norihiro/obs-vban
+
+Package: vban-plugin-for-obs
+Architecture: any
+Multi-Arch: foreign
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+Description: plugin to send and capture VBAN (audio over UDP protocol) audio
+
