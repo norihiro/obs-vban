@@ -6,7 +6,8 @@ Rules-Requires-Root: no
 Build-Depends:
  debhelper-compat (= 13),
  cmake,
- obs-studio
+ obs-studio,
+ libsimde-dev
 Conflicts: obs-vban
 Standards-Version: 4.6.2
 Homepage: https://github.com/norihiro/obs-vban
