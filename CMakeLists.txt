@@ -48,7 +48,8 @@ target_link_libraries(${PROJECT_NAME}
 	OBS::libobs
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME}
+	PRIVATE
 	vban
 	${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -83,9 +84,9 @@ if(APPLE)
 	set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
 endif()
 
-setup_plugin_target(${PROJECT_NAME})
+file(GENERATE OUTPUT .gitignore CONTENT "*\n")
 
-configure_file(installer/installer-macOS.pkgproj.in installer-macOS.generated.pkgproj)
+setup_plugin_target(${PROJECT_NAME})
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	configure_file(
@@ -97,9 +98,13 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 		ci/ci_includes.sh.in
 		ci/ci_includes.generated.sh
 	)
-
 	configure_file(
 		ci/ci_includes.cmd.in
 		ci/ci_includes.generated.cmd
+	)
+
+	configure_file(
+		installer/installer-macOS.pkgproj.in
+		installer-macOS.generated.pkgproj
 	)
 endif()
