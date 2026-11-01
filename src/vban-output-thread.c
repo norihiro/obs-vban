@@ -22,7 +22,9 @@
 #include "vban.h"
 #include "socket.h"
 #include "vban-output-internal.h"
+#include "vban-pacing.h"
 #include "resolve-thread.h"
+#include <util/platform.h>
 
 struct output_thread_s
 {
@@ -258,6 +260,23 @@ static void vban_out_loop(struct vban_out_s *v)
 		return;
 	}
 
+	const size_t channels = v->channels;
+	const size_t fmt_size = VBanBitResolutionSize[t.header->format_bit & VBAN_BIT_RESOLUTION_MASK];
+	const size_t sample_size = channels * fmt_size;
+	size_t nbs = VBAN_DATA_MAX_SIZE / sample_size;
+	if (nbs > 256)
+		nbs = 256;
+	const size_t packet_size = nbs * sample_size;
+	const size_t max_frames = (size_t)t.frequency_vban * VBAN_OUT_MAX_LATENCY_MS / 1000;
+	const size_t target_frames = (size_t)t.frequency_vban * VBAN_OUT_TARGET_LATENCY_MS / 1000;
+
+	struct vban_pacing pacing;
+	vban_pacing_init(&pacing, nbs, (uint64_t)t.frequency_vban, VBAN_OUT_MAX_LAG_PACKETS, max_frames, target_frames);
+
+	uint64_t dropped_frames = 0;
+	uint64_t dropped_logged = 0;
+	uint64_t last_drop_log_ns = 0;
+	uint64_t last_debug_log_ns = 0;
 	unsigned long wait_ms = 100;
 
 	while (v->cont) {
@@ -268,23 +287,25 @@ static void vban_out_loop(struct vban_out_s *v)
 		os_event_timedwait(v->event, wait_ms);
 
 		pthread_mutex_lock(&v->mutex);
-
-		if (v->buffer.size && !pkt.frames) {
-			deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
-		}
-
 		bool restart = bring_settings_unlocked(v, &t, &addr);
-
 		pthread_mutex_unlock(&v->mutex);
 
 		if (restart)
 			break;
 
-		size_t channels = v->channels;
-		size_t fmt_size = VBanBitResolutionSize[t.header->format_bit & VBAN_BIT_RESOLUTION_MASK];
-		size_t sample_size = channels * fmt_size;
+		/* Convert every queued chunk, so that the sender is never limited to
+		 * one chunk per wake-up. */
+		for (;;) {
+			pthread_mutex_lock(&v->mutex);
+			bool have_pkt = v->buffer.size >= sizeof(pkt);
+			if (have_pkt) {
+				deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
+				v->queued_frames -= pkt.frames;
+			}
+			pthread_mutex_unlock(&v->mutex);
+			if (!have_pkt)
+				break;
 
-		if (t.buffer.num + sample_size <= VBAN_DATA_MAX_SIZE && pkt.frames) {
 			t.buf_ts_ns =
 				pkt.timestamp - (uint64_t)(t.buffer.num / sample_size) * 1000000000 / t.frequency_vban;
 			if (t.resampler)
@@ -298,18 +319,27 @@ static void vban_out_loop(struct vban_out_s *v)
 			pkt.frames = 0;
 		}
 
-		size_t nbs = t.buffer.num / sample_size;
-		if (nbs >= 256 || t.buffer.num + sample_size > VBAN_DATA_MAX_SIZE) {
-			if (nbs * sample_size > VBAN_DATA_MAX_SIZE)
-				nbs = VBAN_DATA_MAX_SIZE / sample_size;
-			if (nbs > 256)
-				nbs = 256;
+		/* Drop audio beyond the latency cap or left by a stall, then send
+		 * every packet whose deadline has passed. */
+		uint64_t now = os_gettime_ns();
+		struct vban_pacing_step step = vban_pacing_step(&pacing, now, t.buffer.num / sample_size, 100);
+		if (step.drop_frames) {
+			size_t drop = step.drop_frames * sample_size;
+			memmove(t.buffer.array, (char *)t.buffer.array + drop, t.buffer.num - drop);
+			t.buffer.num -= drop;
+			dropped_frames += step.drop_frames;
+		}
+		if ((step.lag_reset || step.drop_frames) && now - last_debug_log_ns > 1000000000ULL) {
+			blog(LOG_DEBUG, "pacing: lag_reset=%d dropped_frames=%zu buffered_frames=%zu",
+			     (int)step.lag_reset, step.drop_frames, t.buffer.num / sample_size);
+			last_debug_log_ns = now;
+		}
+		for (size_t i = 0; i < step.send_packets; i++) {
 			t.header->format_nbs = (uint8_t)(nbs - 1);
-			size_t n = nbs * sample_size;
-			memcpy(t.payload, t.buffer.array, n);
-			memmove(t.buffer.array, (char *)t.buffer.array + n, t.buffer.num - n);
-			t.buffer.num -= n;
-			sendto(t.vban_socket, vban_buf, VBAN_HEADER_SIZE + n, 0, (struct sockaddr *)&addr,
+			memcpy(t.payload, t.buffer.array, packet_size);
+			memmove(t.buffer.array, (char *)t.buffer.array + packet_size, t.buffer.num - packet_size);
+			t.buffer.num -= packet_size;
+			sendto(t.vban_socket, vban_buf, VBAN_HEADER_SIZE + packet_size, 0, (struct sockaddr *)&addr,
 			       (socklen_t)sizeof(addr));
 
 #ifdef DEBUG_PACKET
@@ -317,7 +347,19 @@ static void vban_out_loop(struct vban_out_s *v)
 #endif
 
 			t.header->nuFrame++;
-			wait_ms = (unsigned long)nbs * 1000 / t.frequency_vban;
+		}
+
+		wait_ms = step.wait_ms;
+
+		/* Report drops at most every 10 s. */
+		pthread_mutex_lock(&v->mutex);
+		uint64_t total_dropped = dropped_frames + v->dropped_frames;
+		pthread_mutex_unlock(&v->mutex);
+		if (total_dropped != dropped_logged && now - last_drop_log_ns > 10000000000ULL) {
+			blog(LOG_INFO, "latency cap (%d ms): dropped %" PRIu64 " frames so far",
+			     VBAN_OUT_MAX_LATENCY_MS, total_dropped);
+			dropped_logged = total_dropped;
+			last_drop_log_ns = now;
 		}
 	}
 
