@@ -35,18 +35,38 @@ static const char *vban_out_get_name(void *type_data)
 	return obs_module_text("VBAN.out");
 }
 
+static void free_queued_audio_unlocked(struct vban_out_s *v)
+{
+	while (v->buffer.size >= sizeof(struct audio_data)) {
+		struct audio_data pkt;
+		deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
+		for (size_t i = 0; i < MAX_AV_PLANES; i++)
+			bfree(pkt.data[i]);
+	}
+	v->queued_frames = 0;
+}
+
 static bool vban_out_start(void *data)
 {
 	struct vban_out_s *v = data;
 
+	uint32_t sample_rate;
 	if (v->context) {
 		audio_t *audio = obs_output_audio(v->context);
 		v->channels = audio_output_get_channels(audio);
+		sample_rate = audio_output_get_sample_rate(audio);
 	}
 	else {
 		const struct audio_output_info *aoi = audio_output_get_info(obs_get_audio());
 		v->channels = get_audio_channels(aoi->speakers);
+		sample_rate = aoi->samples_per_sec;
 	}
+	pthread_mutex_lock(&v->mutex);
+	/* Do not send audio left over from a previous start. */
+	free_queued_audio_unlocked(v);
+	v->max_queued_frames = (size_t)sample_rate * VBAN_OUT_MAX_LATENCY_MS / 1000;
+	v->target_queued_frames = (size_t)sample_rate * VBAN_OUT_TARGET_LATENCY_MS / 1000;
+	pthread_mutex_unlock(&v->mutex);
 
 	v->cont = true;
 	pthread_create(&v->thread, NULL, vban_out_thread_main, v);
@@ -90,6 +110,21 @@ static void vban_out_raw_audio(void *data, struct audio_data *frames)
 	pthread_mutex_lock(&v->mutex);
 
 	deque_push_back(&v->buffer, &pkt, sizeof(pkt));
+	v->queued_frames += pkt.frames;
+
+	/* Latency cap: if the sender thread is stalled, drop the oldest audio
+	 * down to the target (keeping at least the chunk just pushed) instead of
+	 * growing forever. */
+	if (v->max_queued_frames && v->queued_frames > v->max_queued_frames) {
+		while (v->queued_frames > v->target_queued_frames && v->buffer.size > sizeof(pkt)) {
+			struct audio_data old;
+			deque_pop_front(&v->buffer, &old, sizeof(old));
+			v->queued_frames -= old.frames;
+			v->dropped_frames += old.frames;
+			for (size_t i = 0; i < MAX_AV_PLANES; i++)
+				bfree(old.data[i]);
+		}
+	}
 
 	os_event_signal(v->event);
 
@@ -208,12 +243,7 @@ static void vban_out_destroy(void *data)
 	blog(LOG_INFO, "vban_out_destroy destroying...");
 	struct vban_out_s *v = data;
 
-	while (v->buffer.size) {
-		struct audio_data pkt;
-		deque_pop_front(&v->buffer, &pkt, sizeof(pkt));
-		for (size_t i = 0; i < MAX_AV_PLANES; i++)
-			bfree(pkt.data[i]);
-	}
+	free_queued_audio_unlocked(v);
 
 	if (v->rt) {
 		resolve_thread_release(v->rt);

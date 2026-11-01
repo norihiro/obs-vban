@@ -18,6 +18,7 @@ set(ID_PREFIX "net.nagater.obs-vban.")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
+option(ENABLE_TESTS "Build unit tests" OFF)
 
 # TAKE NOTE: No need to edit things past this point
 
@@ -112,4 +113,14 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 		installer/installer-macOS.pkgproj.in
 		installer-macOS.generated.pkgproj
 	)
+endif()
+
+if(ENABLE_TESTS)
+	enable_testing()
+	add_executable(test-pacing test/test-pacing.c)
+	target_include_directories(test-pacing PRIVATE src)
+	if(NOT MSVC)
+		target_compile_options(test-pacing PRIVATE -Wall -Wextra)
+	endif()
+	add_test(NAME pacing COMMAND test-pacing)
 endif()
